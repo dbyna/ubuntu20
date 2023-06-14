@@ -1,0 +1,97 @@
+##### konfigurasi samba #######
+
+1. install samba
+$ yum install samba
+
+2. firewall allow samba
+$ firewall-cmd --add-service=samba --permanent
+$ firewall-cmd --reload
+
+3. restart dan enable samba
+$ systemctl restart {smb,nmb}
+$ systemctl enable {smb,nmb}
+
+4. buat direktori yang ingin di share
+$ cd /home
+$ mkdir share
+$ chmod 777 share/
+
+5. konfigurasi file samba
+$ vim /etc/samba/smb.conf
+
+(
+    [global] --tambahin
+        map to guest = Bad User
+
+    [share]
+        path= /home/share
+        writable= yes
+        guest ok= yes
+        create mode= 0777
+        directory mode= 0777
+        share modes= yes
+
+)
+
+6. uabh selinux
+$ chcon -t samba_share_t /home/share/
+$ systemctl restart {smb,nmb}
+
+7. verifikasi
+
+############## konfigurasi limited akses
+
+1. buat folder baru
+$ mkdir /home/khusus
+
+2. buat grub developer
+$ groupadd developer
+
+3. buat user
+$ useradd webdev
+$ passwd webdev
+
+4. masukan user webdev ke group developer
+$ usermod -aG developer webdev
+
+5. ubah kepemilikan folder khusus
+$ chgrp developer khusus/
+
+6. ubah permission
+$ chmod 770 khusus/
+$ smbpasswd -a webdev
+
+7. konfigurasi file samba
+$ vim /etc/samba/smb.conf
+(
+        [khusus]
+            path= /home/khusus
+            writable= yes
+            guest ok= no
+            create mode= 0770
+            directory mode= 0770
+            share modes= yes
+            valid user= @developer
+)
+
+8. enable selinux 
+$ setsebool -P samba_enable_home_dirs on
+$ chcon -t samba_share_t /home/khusus
+
+9. restart
+$ systemctl restart {smb,nmb}
+
+10. verifikasi
+
+#### block extensi ####
+
+1. vim /etc/samba/smb.conf
+
+tambahkan
+(
+    veto files= /*.exe/
+    delete veto files= yes
+)
+
+2. restart
+$ systemctl restart {smb,nmb}
